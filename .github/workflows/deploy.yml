@@ -1,0 +1,68 @@
+name: Build & Deploy to AKS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "services/**"
+      - "deploy/k8s/**"
+      - ".github/workflows/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: ${{ secrets.RESOURCE_GROUP }}
+  AKS: ${{ secrets.AKS_CLUSTER }}
+  ACR: ${{ secrets.ACR_NAME }}
+  NS: finance
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Detect changed services
+        id: changed
+        run: |
+          set -e
+          git fetch --depth=2 origin main
+          CHANGED=$(git diff --name-only HEAD~1 HEAD | awk -F/ '/^services\//{print $2}' | sort -u | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then
+            CHANGED="accounts-service payments-service transactions-service auth-service gateway-service"
+          fi
+          echo "services=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Changed services: $CHANGED"
+
+      - name: Build & push to ACR (ACR build)
+        run: |
+          set -e
+          for svc in ${{ steps.changed.outputs.services }}; do
+            echo "Building $svc..."
+            az acr build -r $ACR -t $svc:${{ github.sha }} ./services/$svc
+          done
+
+      - name: Get AKS credentials
+        run: az aks get-credentials -g $RG -n $AKS --overwrite-existing
+
+      - name: Apply k8s (namespace + services)
+        run: |
+          kubectl apply -f deploy/k8s/namespace.yaml
+          kubectl apply -f deploy/k8s/service/ -n $NS
+
+      - name: Rolling update deployments (set image)
+        run: |
+          set -e
+          for svc in ${{ steps.changed.outputs.services }}; do
+            echo "Deploying $svc..."
+            kubectl set image deployment/$svc $svc=$ACR.azurecr.io/$svc:${{ github.sha }} -n $NS
+            kubectl rollout status deployment/$svc -n $NS --timeout=180s
+          done
