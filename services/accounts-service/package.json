@@ -1,0 +1,9 @@
+{
+  "name": "accounts-service",
+  "version": "1.0.0",
+  "description": "Finance Accounts Microservice",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

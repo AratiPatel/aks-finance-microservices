@@ -1,0 +1,11 @@
+{
+  "name": "payments-service",
+  "version": "1.0.0",
+  "description": "Payments microservice for finance application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Arati Patel",
+  "license": "MIT"
+}

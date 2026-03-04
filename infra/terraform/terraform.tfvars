@@ -1,0 +1,5 @@
+acr_name            = "acrfinanceportfolio123"
+location            = "canadacentral"
+resource_group_name = "rg-aks-finance"
+aks_name            = "aks-finance"
+project_name        = "aksfin"
