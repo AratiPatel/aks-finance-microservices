@@ -53,11 +53,11 @@ jobs:
       - name: Get AKS credentials
         run: az aks get-credentials -g $RG -n $AKS --overwrite-existing
 
-      - name: Apply k8s (namespace + services)
+      - name: Apply k8s (namespace + manifests)
         run: |
           kubectl apply -f deploy/k8s/namespace.yaml
-          kubectl apply -f deploy/k8s/service/ -n $NS
-
+          kubectl apply -f deploy/k8s/
+          
       - name: Rolling update deployments (set image)
         run: |
           set -e
